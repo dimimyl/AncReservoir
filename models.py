@@ -6,7 +6,7 @@ from scipy import signal
 
 
 def esn(x_train, y_train, x_test, y_test):
-    reservoir = Reservoir(500, lr=0.08, sr=1.03)
+    reservoir = Reservoir(500, lr=0.01, sr=1.03)
     #readout = Ridge(ridge=1e-7)
     readout=LMS(alpha=1e-5)
     esn_model = reservoir >> readout
