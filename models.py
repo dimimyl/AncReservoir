@@ -6,13 +6,13 @@ from scipy import signal
 
 
 def esn(x_train, y_train, x_test, y_test):
-    reservoir = Reservoir(500, lr=0.01, sr=1.03)
+    reservoir = Reservoir(900, lr=0.36453999372827345, sr=0.7281951867012687)
     #readout = Ridge(ridge=1e-7)
     readout=LMS(alpha=1e-5)
     esn_model = reservoir >> readout
     print("Training model...")
     #esn_model.fit(x_train, y_train, warmup=0)
-    esn_model.train(x_train, y_train)
+    error=esn_model.train(x_train, y_train)
     (print('Make predictions...'))
     #x_test=x_test[0:10000]
     #x_test = np.reshape(x_test, (x_test.shape[0],))
@@ -21,11 +21,11 @@ def esn(x_train, y_train, x_test, y_test):
     #x_test=np.reshape(x_test,(len(x_test),1))
     #y_test=y_test[0:10000]
     #print(x_test.shape,y_test.shape)
-    y_pred = esn_model.run(x_test)
-    loss=nrmse(y_test, y_pred)
-    accuracy=rsquare(y_test, y_pred)
-    return(y_test, y_pred, loss, accuracy)
-
+    #y_pred = esn_model.run(x_test)
+    #loss=nrmse(y_test, y_pred)
+    #accuracy=rsquare(y_test, y_pred)
+    #return(y_test, y_pred, loss, accuracy)
+    return error
 def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
     #sec_path = np.loadtxt("secondaryA2_50.txt", dtype=float)
     #sec_path_est = np.loadtxt("secondary_path_estimation.txt", dtype=float)
@@ -38,9 +38,9 @@ def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
     #disturbance = np.convolve(reference_signal, prim_path, mode='same')
     fl = 250
     sec_path = np.concatenate((sec_path, np.zeros(fl - len(sec_path))))
+    sec_path_model = sec_path
     # plt.plot(np.arange(fl),sec_path)
     # plt.show()
-
     x_buf = np.zeros(fl)
     w = np.zeros(fl)
     y_buf = np.zeros(fl)
@@ -62,15 +62,14 @@ def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
         ref_norm = np.sum(np.square(x_buf))
         step_norm = step / (0.0000001 + ref_norm)
         w = np.subtract(w, fx_buf * step_norm * error[i])
-    plt.plot(np.arange(len(disturbance)), disturbance)
-    plt.plot(np.arange(len(error)), error)
+    #plt.plot(np.arange(len(disturbance)), disturbance)
+    #plt.plot(np.arange(len(error)), error)
 
-    plt.show()
-
-
+    #plt.show()
+    return error
 def sec_path_est():
-    #sec_path = np.loadtxt("secondaryA2_50.txt", dtype=float)
-    sec_path=np.array([0.01, 0.25, 0.5, 1, 0.5, 0.25, 0.01])
+    sec_path = np.loadtxt("secondaryA2_50.txt", dtype=float)
+    #sec_path=np.array([0.01, 0.25, 0.5, 1, 0.5, 0.25, 0.01])
     f=500
     fs=2000
     fl=250

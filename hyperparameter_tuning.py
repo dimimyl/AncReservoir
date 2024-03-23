@@ -1,11 +1,11 @@
 from loadDataset import loadDataset
-from reservoirpy.nodes import Reservoir, Ridge
+from reservoirpy.nodes import Reservoir, Ridge, LMS
 from reservoirpy.observables import nrmse, rsquare
 import numpy as np
 import json
 from reservoirpy.hyper import research
 
-def objective(dataset, config, *, iss, N, sr, lr, ridge, seed):
+def objective(dataset, config, *, iss, N, sr, lr, alpha, seed):
 
     x_train, y_train, x_test, y_test= dataset
     # You can access anything you put in the config
@@ -27,12 +27,12 @@ def objective(dataset, config, *, iss, N, sr, lr, ridge, seed):
                               input_scaling=iss,
                               seed=variable_seed)
 
-        readout = Ridge(ridge=ridge)
+        readout = LMS(alpha=alpha)
 
         model = reservoir >> readout
 
-        predictions = model.fit(x_train, y_train) \
-                           .run(x_test)
+        model.train(x_train, y_train)
+        predictions = model.run(x_test)
 
         loss = nrmse(y_test, predictions, norm_value=np.ptp(x_train))
         r2 = rsquare(y_test, predictions)
@@ -56,12 +56,12 @@ def hyper_tuning(dataset):
         "seed": 42,  # the random state seed, to ensure reproducibility
         "instances_per_trial": 3,  # how many random ESN will be tried with each sets of parameters
         "hp_space": {  # what are the ranges of parameters explored
-            "N": ["choice", 500],  # the number of neurons is fixed to 300
-            "sr": ["loguniform", 1e-2, 10],  # the spectral radius is log-uniformly distributed between 1e-6 and 10
-            "lr": ["loguniform", 1e-3, 1],  # idem with the leaking rate, from 1e-3 to 1
-            "iss": ["choice", 0.9],  # the input scaling is fixed
-            "ridge": ["choice", 1e-7],  # and so is the regularization parameter.
-            "seed": ["choice", 1234]  # an other random seed for the ESN initialization
+            "N": ["choice",100, 300, 500, 600, 700, 900 ],  # the number of neurons is fixed to 300
+            "sr": ["loguniform", 1e-2, 2],  # the spectral radius is log-uniformly distributed between 1e-6 and 10
+            "lr": ["loguniform", 1e-2, 1],  # idem with the leaking rate, from 1e-3 to 1
+            "iss": ["loguniform", 1e-2, 1],  # the input scaling is fixed
+            "alpha": ["choice", 1e-5],  # and so is the regularization parameter.
+            "seed": ["choice", 1234]  # another random seed for the ESN initialization
         }
     }
 
