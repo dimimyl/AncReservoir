@@ -8,16 +8,20 @@ from keras.models import Sequential
 from keras.layers import Dense, SimpleRNN
 from tensorflow.keras import models
 from sklearn.metrics import r2_score
+import joblib
 
-def esn(x_train, y_train, x_test, y_test):
-    reservoir = Reservoir(900, lr=0.36453999372827345, sr=0.7281951867012687, input_scaling=0.9)
+def esn_train(x_train, y_train):
+    reservoir = Reservoir(1200, lr=0.5103053496657172, sr=0.7281951867012687, input_scaling=50)
     readout=LMS(alpha=1e-5)
-    esn_model = reservoir >> readout
+    model = reservoir >> readout
     print("Training model...")
-    esn_model.train(x_train, y_train)
-    (print('Make predictions...'))
-    y_pred = esn_model.run(x_train)
-    return y_pred
+    model.train(x_train, y_train)
+    return model
+def esn_test (x_test, y_test, model):
+    y_pred = model.run(x_test)
+    error= y_test-y_pred
+    acc= r2_score(y_test,y_pred)
+    return error, acc
 def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
     sec_path = np.loadtxt("secondaryA2_50.txt", dtype=float)
     prim_path = np.loadtxt("primaryA2_50.txt", dtype=float)
@@ -70,7 +74,7 @@ def loss_fn(y_true, y_pred):
     loss2 = tf.reduce_mean(tf.square(y_true - y))
     loss=loss1+loss2
     return loss
-def train_rnn (x_train, y_train):
+def rnn_train (x_train, y_train):
     model = Sequential()
     model.add(SimpleRNN(900, input_shape=(1, 1), activation='tanh'))
     model.add(Dense(units=1, activation='tanh'))
@@ -83,7 +87,7 @@ def train_rnn (x_train, y_train):
     model.save_weights('models/rnn_model_mod.weights' + '.h5')  # save trained model to file
     print('Saved model to disk!')
     return model
-def test_rnn (x_test, y_test):
+def rnn_test (x_test, y_test):
     json_file = open('models/rnn_model_mod' + '.json', 'r')
     loaded_model_json = json_file.read()  # load model weights
     json_file.close()
@@ -93,7 +97,7 @@ def test_rnn (x_test, y_test):
     y_pred = loaded_model.predict(x_test)
     accuracy=r2_score(y_test, y_pred)
     print(accuracy)
-    return y_pred
+    return y_test, y_pred
 def sec_path_est():
     sec_path=np.array([0, 0, 1, 1.5, -1])
     f=500

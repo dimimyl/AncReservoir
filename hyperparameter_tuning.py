@@ -60,10 +60,10 @@ def hyper_tuning(dataset):
         "seed": 42,  # the random state seed, to ensure reproducibility
         "instances_per_trial": 3,  # how many random ESN will be tried with each sets of parameters
         "hp_space": {  # what are the ranges of parameters explored
-            "N": ["choice",300, 500, 900 ],  # the number of neurons is fixed to 300
-            "sr": ["loguniform", 1e-2, 2],  # the spectral radius is log-uniformly distributed between 1e-6 and 10
+            "N": ["choice", 900, 1200 ],  # the number of neurons is fixed to 300
+            "sr": ["loguniform", 1e-2, 5],  # the spectral radius is log-uniformly distributed between 1e-6 and 10
             "lr": ["loguniform", 1e-2, 1],  # idem with the leaking rate, from 1e-3 to 1
-            "iss": ["choice", 0.01, 0.1, 1, 5, 10, 50],  # the input scaling is fixed
+            "iss": ["choice",  1, 10, 50],  # the input scaling is fixed
             "alpha": ["choice", 1e-5],  # and so is the regularization parameter.
             "seed": ["choice", 1234]  # another random seed for the ESN initialization
         }
