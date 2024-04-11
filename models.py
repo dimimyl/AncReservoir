@@ -8,20 +8,23 @@ from keras.models import Sequential
 from keras.layers import Dense, SimpleRNN
 from tensorflow.keras import models
 from sklearn.metrics import r2_score
-import joblib
+
 
 def esn_train(x_train, y_train):
-    reservoir = Reservoir(1200, lr=0.5103053496657172, sr=0.7281951867012687, input_scaling=50)
+    reservoir = Reservoir(1200, lr=0.36453999372827345, sr=0.7281951867012687, input_scaling=0.9)
     readout=LMS(alpha=1e-5)
     model = reservoir >> readout
     print("Training model...")
-    model.train(x_train, y_train)
-    return model
+    y=model.train(x_train, y_train)
+    mse=np.square(y_train-y)
+    return model, mse
+
 def esn_test (x_test, y_test, model):
     y_pred = model.run(x_test)
     error= y_test-y_pred
     acc= r2_score(y_test,y_pred)
     return error, acc
+
 def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
     sec_path = np.loadtxt("secondaryA2_50.txt", dtype=float)
     prim_path = np.loadtxt("primaryA2_50.txt", dtype=float)
@@ -29,7 +32,7 @@ def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
     fs = 2000
     time = 200
     time_steps = np.arange(0, time, 1 / fs)
-    fl = 900
+    fl = 1200
     sec_path = np.concatenate((sec_path, np.zeros(fl - len(sec_path))))
     sec_path_model = sec_path
     x_buf = np.zeros(fl)
@@ -44,7 +47,6 @@ def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
         y_buf = np.insert(y_buf, 0, y)
         y_buf = y_buf[0:fl]
         canceling_signal = np.dot(y_buf, sec_path)
-        print(canceling_signal)
         error[i] = disturbance[i] + canceling_signal
         fx = np.dot(x_buf, sec_path_model)
         fx_buf = np.insert(fx_buf, 0, fx)
@@ -52,9 +54,10 @@ def fxlms(reference_signal,disturbance,sec_path, sec_path_model):
         ref_norm = np.sum(np.square(x_buf))
         step_norm = step / (0.0000001 + ref_norm)
         w = np.subtract(w, fx_buf * step_norm * error[i])
-    return error
+    mse=np.square(error)
+    return w, mse
 
-
+# custom loss function to enhance rnn performance when secondary path is present
 previous_y_pred = None
 @keras.saving.register_keras_serializable(package="my_package", name="loss_fn")
 def loss_fn(y_true, y_pred):
@@ -77,10 +80,10 @@ def loss_fn(y_true, y_pred):
 def rnn_train (x_train, y_train):
     model = Sequential()
     model.add(SimpleRNN(900, input_shape=(1, 1), activation='tanh'))
-    model.add(Dense(units=1, activation='tanh'))
-    model.compile(loss=loss_fn, optimizer=tf.optimizers.Adam(), metrics=['accuracy'], run_eagerly = True)
+    model.add(Dense(units=1, activation='linear'))
+    model.compile(loss='mse', optimizer=tf.optimizers.Adam(), metrics=['accuracy'], run_eagerly = True)
     print('Training RNN model...')
-    model.fit(x_train, y_train, epochs=2, batch_size=1, verbose=2, validation_split=0.2)
+    model.fit(x_train, y_train, epochs=2, batch_size=100, verbose=2, validation_split=0.2)
     model_json = model.to_json()
     with open('models/rnn_model_mod' + '.json', 'w') as json_file:
         json_file.write(model_json)
@@ -97,7 +100,7 @@ def rnn_test (x_test, y_test):
     y_pred = loaded_model.predict(x_test)
     accuracy=r2_score(y_test, y_pred)
     print(accuracy)
-    return y_test, y_pred
+    return y_pred
 def sec_path_est():
     sec_path=np.array([0, 0, 1, 1.5, -1])
     f=500
@@ -109,8 +112,6 @@ def sec_path_est():
     noise=np.random.normal(0,1,len(time_steps))
     b, a = signal.iirfilter(4, Wn=500, fs=fs, btype="low", ftype="butter")
     reference_noise = signal.lfilter(b, a, noise)
-    plt.plot(time_steps, reference_noise)
-    plt.show()
     output=np.convolve(reference_noise, sec_path, mode='same')
     sec_est=np.zeros(fl)
     error_buffer=np.zeros(len(time_steps))
